@@ -7,8 +7,8 @@
         "velocity_ki": 0.0,
         "torque_limit": 1.0,
         "velocity_limit": 20.0,
-        "position_limit_upper": Infinity,
-        "position_limit_lower": -Infinity,
+        "position_limit_upper": 1e9,
+        "position_limit_lower": -1e9,
         "position_offset": 0.0,
         "torque_filter_alpha": 0.2695973217487335
     },
