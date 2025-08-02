@@ -188,17 +188,22 @@ class MujocoSimulator(MujocoEnv):
         Args:
             actions (torch.Tensor): Target joint positions for controlled joints
         """
-        target_positions = torch.zeros((self.cfg.num_joints,))
+        target_positions = torch.zeros((self.cfg.num_joints,), device=actions.device)
         target_positions[self.cfg.action_indices] = actions
 
+        joint_kp = self.joint_kp.to(actions.device)
+        joint_kd = self.joint_kd.to(actions.device)
+        effort_limits = self.effort_limits.to(actions.device)
+        joint_pos = self._get_joint_pos().to(actions.device)
+        joint_vel = self._get_joint_vel().to(actions.device)
+
         # PD control
-        output_torques = self.joint_kp * (target_positions - self._get_joint_pos()) + \
-            self.joint_kd * (-self._get_joint_vel())
+        output_torques = joint_kp * (target_positions - joint_pos) + joint_kd * (-joint_vel)
 
         # Apply EMA filtering and torque limits
-        output_torques_clipped = torch.clip(output_torques, -self.effort_limits, self.effort_limits)
+        output_torques_clipped = torch.clip(output_torques, -effort_limits, effort_limits)
 
-        self.mj_data.ctrl[:] = output_torques_clipped.numpy()
+        self.mj_data.ctrl[:] = output_torques_clipped.cpu().numpy()
 
     def _get_base_pos(self) -> torch.Tensor:
         """Get base position of the robot.
