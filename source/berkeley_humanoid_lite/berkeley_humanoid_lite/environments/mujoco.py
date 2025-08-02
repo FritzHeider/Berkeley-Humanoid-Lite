@@ -1,6 +1,7 @@
 
 import time
 import threading
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -34,10 +35,18 @@ class MujocoEnv:
         self.cfg = cfg
 
         # Load appropriate MJCF model based on robot configuration
+        assets_dir = (
+            Path(__file__).resolve().parents[3]
+            / "berkeley_humanoid_lite_assets"
+            / "data"
+            / "mjcf"
+        )
         if cfg.num_joints == 22:
-            self.mj_model = mujoco.MjModel.from_xml_path("source/berkeley_humanoid_lite_assets/data/mjcf/bhl_scene.xml")
+            mjcf_file = assets_dir / "bhl_scene.xml"
         else:
-            self.mj_model = mujoco.MjModel.from_xml_path("source/berkeley_humanoid_lite_assets/data/mjcf/bhl_biped_scene.xml")
+            mjcf_file = assets_dir / "bhl_biped_scene.xml"
+
+        self.mj_model = mujoco.MjModel.from_xml_path(str(mjcf_file))
 
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_model.opt.timestep = self.cfg.physics_dt
