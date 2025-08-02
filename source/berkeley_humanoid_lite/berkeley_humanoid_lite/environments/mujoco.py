@@ -1,6 +1,7 @@
 
 import time
 import threading
+import logging
 
 import numpy as np
 import torch
@@ -9,6 +10,9 @@ import mujoco.viewer
 
 from berkeley_humanoid_lite_lowlevel.policy.config import Cfg
 from berkeley_humanoid_lite_lowlevel.policy.gamepad import Se2Gamepad
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def quat_rotate_inverse(q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
@@ -57,7 +61,7 @@ class MujocoVisualizer(MujocoEnv):
         super().__init__(cfg)
 
         self.num_dofs = self.mj_model.nu
-        print(f"Number of DOFs: {self.num_dofs}")
+        logger.info("Number of DOFs: %s", self.num_dofs)
 
     def reset(self) -> None:
         """Reset the simulation environment to initial state.
@@ -125,9 +129,9 @@ class MujocoSimulator(MujocoEnv):
 
         self.n_steps = 0
 
-        print("Policy frequency: ", 1 / self.cfg.policy_dt)
-        print("Physics frequency: ", 1 / self.cfg.physics_dt)
-        print("Physics substeps: ", self.physics_substeps)
+        logger.info("Policy frequency: %s", 1 / self.cfg.policy_dt)
+        logger.info("Physics frequency: %s", 1 / self.cfg.physics_dt)
+        logger.info("Physics substeps: %s", self.physics_substeps)
 
         # Initialize control mode and command variables
         self.is_killed = threading.Event()
