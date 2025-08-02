@@ -100,7 +100,10 @@ class TeleopIkSolver():
         button_data = self.button_data
         trigger_data = self.trigger_data
 
-        assert obs.shape == (self.robot.model.nq,)
+        if obs.shape != (self.robot.model.nq,):
+            raise ValueError(
+                f"Observation vector must have shape ({self.robot.model.nq},), got {obs.shape}"
+            )
 
         data = self.robot.data.copy()
         # Update pinocchio data

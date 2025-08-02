@@ -2,6 +2,7 @@
 import time
 import threading
 import logging
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -38,10 +39,18 @@ class MujocoEnv:
         self.cfg = cfg
 
         # Load appropriate MJCF model based on robot configuration
+        assets_dir = (
+            Path(__file__).resolve().parents[3]
+            / "berkeley_humanoid_lite_assets"
+            / "data"
+            / "mjcf"
+        )
         if cfg.num_joints == 22:
-            self.mj_model = mujoco.MjModel.from_xml_path("source/berkeley_humanoid_lite_assets/data/mjcf/bhl_scene.xml")
+            mjcf_file = assets_dir / "bhl_scene.xml"
         else:
-            self.mj_model = mujoco.MjModel.from_xml_path("source/berkeley_humanoid_lite_assets/data/mjcf/bhl_biped_scene.xml")
+            mjcf_file = assets_dir / "bhl_biped_scene.xml"
+
+        self.mj_model = mujoco.MjModel.from_xml_path(str(mjcf_file))
 
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_model.opt.timestep = self.cfg.physics_dt
@@ -117,6 +126,11 @@ class MujocoSimulator(MujocoEnv):
         # Initialize simulation parameters
         self.sensordata_dof_size = 3 * self.mj_model.nu
         self.gravity_vector = torch.tensor([0.0, 0.0, -1.0])
+
+        # Cache buffers to avoid reallocation in sensor getters
+        self._base_pos_cache = torch.zeros(3, dtype=torch.float32)
+        self._base_quat_cache = torch.zeros(4, dtype=torch.float32)
+        self._base_ang_vel_cache = torch.zeros(3, dtype=torch.float32)
 
         # Initialize control parameters
         self.joint_kp = torch.zeros((self.cfg.num_joints,), dtype=torch.float32)
@@ -210,7 +224,10 @@ class MujocoSimulator(MujocoEnv):
         Returns:
             torch.Tensor: Base position [x, y, z]
         """
-        return torch.tensor(self.mj_data.qpos[:3], dtype=torch.float32)
+        self._base_pos_cache.copy_(
+            torch.from_numpy(self.mj_data.qpos[:3].copy()).float()
+        )
+        return self._base_pos_cache
 
     def _get_base_quat(self) -> torch.Tensor:
         """Get base orientation quaternion from sensors.
@@ -218,8 +235,14 @@ class MujocoSimulator(MujocoEnv):
         Returns:
             torch.Tensor: Base orientation quaternion [w, x, y, z]
         """
-        return torch.tensor(self.mj_data.sensordata[self.sensordata_dof_size+0:self.sensordata_dof_size+4],
-                          dtype=torch.float32)
+        self._base_quat_cache.copy_(
+            torch.from_numpy(
+                self.mj_data.sensordata[
+                    self.sensordata_dof_size : self.sensordata_dof_size + 4
+                ].copy()
+            ).float()
+        )
+        return self._base_quat_cache
 
     def _get_base_ang_vel(self) -> torch.Tensor:
         """Get base angular velocity from sensors.
@@ -227,8 +250,14 @@ class MujocoSimulator(MujocoEnv):
         Returns:
             torch.Tensor: Base angular velocity [wx, wy, wz]
         """
-        return torch.tensor(self.mj_data.sensordata[self.sensordata_dof_size+4:self.sensordata_dof_size+7],
-                          dtype=torch.float32)
+        self._base_ang_vel_cache.copy_(
+            torch.from_numpy(
+                self.mj_data.sensordata[
+                    self.sensordata_dof_size + 4 : self.sensordata_dof_size + 7
+                ].copy()
+            ).float()
+        )
+        return self._base_ang_vel_cache
 
     def _get_projected_gravity(self) -> torch.Tensor:
         """Get gravity vector in the robot's base frame.
