@@ -273,6 +273,25 @@ class EventsCfg:
         mode="startup",
     )
 
+    randomize_light = EventTerm(
+        func=mdp.randomize_light,
+        params={
+            "asset_cfg": SceneEntityCfg("light"),
+            "color_range": ((0.5, 1.0), (0.5, 1.0), (0.5, 1.0)),
+            "intensity_range": (2000.0, 4000.0),
+        },
+        mode="startup",
+    )
+    randomize_sky_light = EventTerm(
+        func=mdp.randomize_light,
+        params={
+            "asset_cfg": SceneEntityCfg("sky_light"),
+            "color_range": ((0.1, 0.3), (0.1, 0.3), (0.1, 0.3)),
+            "intensity_range": (500.0, 1500.0),
+        },
+        mode="startup",
+    )
+
     # === Reset behaviors ===
     reset_base = EventTerm(
         func=mdp.reset_root_state_uniform,
